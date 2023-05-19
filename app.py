@@ -10,6 +10,10 @@ from langchain.vectorstores import Chroma
 # Load environment variables from .env file
 load_dotenv()
 
+input_shared_token = st.text_input("Enter shared token", type="password")
+if input_shared_token.strip() != getenv('SHARING_TOKEN'):
+    st.stop()
+
 # Create instance of OpenAI LLM
 llm = OpenAI(temperature=0.1, verbose=True, api_key=getenv('OPENAI_API_KEY'))
 
