@@ -8,28 +8,35 @@ from dataloader import DataLoader
 
 
 class App:
+    """A Streamlit application for PaperParrot."""
+
     def __init__(self):
+        """Initialize the application."""
         load_dotenv()
+        self.uploaded_file = None
+        self.uploaded_file_path = None
+        self.store = None
+        self.agent_executor = None
 
         self.shared_token = st.text_input("Enter shared token", type="password")
-
         if self.shared_token.strip() != getenv('SHARING_TOKEN'):
             st.stop()
+        # Add sidebar with description
+        st.sidebar.markdown("## PaperParrot")
+        st.sidebar.markdown("A POC for processing PDF using LLM")
+        st.title('PaperParrot')
 
         self.llm = OpenAI(temperature=0.1, verbose=True, api_key=getenv('OPENAI_API_KEY'))
 
-        ## todo add sidebar
-
-        st.title('PaperParrot')
-
+        self.uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
         if self.uploaded_file is not None:
-            self.handle_file_upload()
+            self.save_file_to_uploads_dir()
             self.train_model()
+            if prompt := st.text_input('Fire away with your follow-up questions!'):
+                self.handle_prompt(prompt)
 
     def train_model(self):
-        """
-        Train the model on the uploaded PDF
-        """
+        """Train the model with the uploaded PDF."""
         st.info("Hold on tight! We're loading the PDF and training ChatGPT")
         progress = st.progress(0)
 
@@ -40,26 +47,14 @@ class App:
         progress.progress(100)
         st.success('PDF is loaded and our model is trained. Get ready to ask your side-splitting questions.')
 
-        if prompt := st.text_input('Fire away with your follow-up questions!'):
-            self.handle_prompt(prompt)
-
-    def handle_file_upload(self):
-        """
-        Handle the file upload
-        """
-        self.uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
-
-        # Save the uploaded file
+    def save_file_to_uploads_dir(self):
+        """Write the mutable uploaded file object to disk"""
         self.uploaded_file_path = path.join(getenv('UPLOAD_DIRECTORY'), self.uploaded_file.name)
         with open(self.uploaded_file_path, 'wb') as f:
             f.write(self.uploaded_file.getvalue())
 
-        st.success('Congratulations! PDF successfully uploaded.')
-
     def handle_prompt(self, prompt):
-        """
-        Handle the prompt
-        """
+        """Handle the user prompt."""
         st.write(self.agent_executor.run(prompt))  # Then pass the prompt to the LLM and write it out to the screen
 
         # With a streamlit expander
