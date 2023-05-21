@@ -2,67 +2,71 @@ from os import getenv, path
 
 import streamlit as st
 from dotenv import load_dotenv
-from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_vectorstore_agent
-from langchain.document_loaders import PyPDFLoader
 from langchain.llms import OpenAI
-from langchain.vectorstores import Chroma
 
-# Load environment variables from .env file
-load_dotenv()
+from dataloader import DataLoader
 
-input_shared_token = st.text_input("Enter shared token", type="password")
-if input_shared_token.strip() != getenv('SHARING_TOKEN'):
-    st.stop()
 
-# Create instance of OpenAI LLM
-llm = OpenAI(temperature=0.1, verbose=True, api_key=getenv('OPENAI_API_KEY'))
+class App:
+    def __init__(self):
+        load_dotenv()
 
-st.title('PaperParrot')
+        self.shared_token = st.text_input("Enter shared token", type="password")
 
-# Create a file uploader widget
-uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+        if self.shared_token.strip() != getenv('SHARING_TOKEN'):
+            st.stop()
 
-# If a file has been uploaded
-if uploaded_file is not None:
-    # Save the uploaded file
-    file_path = path.join(getenv('UPLOAD_DIRECTORY'), uploaded_file.name)
-    with open(file_path, 'wb') as f:
-        f.write(uploaded_file.getvalue())
+        self.llm = OpenAI(temperature=0.1, verbose=True, api_key=getenv('OPENAI_API_KEY'))
 
-    st.success('Congratulations! PDF successfully uploaded.')
+        ## todo add sidebar
 
-    st.info("Hold on tight! We're loading the PDF and training ChatGPT")
-    progress = st.progress(0)
+        st.title('PaperParrot')
 
-    # Load documents into vector database aka ChromaDB
-    pages = PyPDFLoader(file_path).load_and_split()
+        if self.uploaded_file is not None:
+            self.handle_file_upload()
+            self.train_model()
 
-    # Update progress bar
-    progress.progress(50)
+    def train_model(self):
+        """
+        Train the model on the uploaded PDF
+        """
+        st.info("Hold on tight! We're loading the PDF and training ChatGPT")
+        progress = st.progress(0)
 
-    store = Chroma.from_documents(pages, collection_name='annualreport')
+        vector_db_manager = DataLoader(self.llm)
+        self.store, self.agent_executor = vector_db_manager.process_pdf(self.uploaded_file_path)
 
-    # Convert the document store into a langchain toolkit
-    toolkit = VectorStoreToolkit(vectorstore_info=VectorStoreInfo(
-            name="annual_report",
-            description="a banking annual report as a pdf",
-            vectorstore=store
-    ))
+        # Update progress bar to 100%
+        progress.progress(100)
+        st.success('PDF is loaded and our model is trained. Get ready to ask your side-splitting questions.')
 
-    # Add the toolkit to an end-to-end LC
-    agent_executor = create_vectorstore_agent(llm=llm, toolkit=toolkit, verbose=True)
+        if prompt := st.text_input('Fire away with your follow-up questions!'):
+            self.handle_prompt(prompt)
 
-    # Update progress bar to 100%
-    progress.progress(100)
-    st.success('PDF is loaded and our model is trained. Get ready to ask your side-splitting questions.')
+    def handle_file_upload(self):
+        """
+        Handle the file upload
+        """
+        self.uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
 
-    # Print a summary of the PDF (e.g. the first page)
-    # st.info(f"PDF Summary:\n\n{pages[0]}")
+        # Save the uploaded file
+        self.uploaded_file_path = path.join(getenv('UPLOAD_DIRECTORY'), self.uploaded_file.name)
+        with open(self.uploaded_file_path, 'wb') as f:
+            f.write(self.uploaded_file.getvalue())
 
-    if prompt := st.text_input('Fire away with your follow-up questions!'):
-        st.write(agent_executor.run(prompt))  # Then pass the prompt to the LLM and write it out to the screen
+        st.success('Congratulations! PDF successfully uploaded.')
+
+    def handle_prompt(self, prompt):
+        """
+        Handle the prompt
+        """
+        st.write(self.agent_executor.run(prompt))  # Then pass the prompt to the LLM and write it out to the screen
 
         # With a streamlit expander
         with st.expander('Related Sections for Above Information'):
             # Find the relevant pages and Write out the first
-            st.write(store.similarity_search_with_score(prompt)[0][0].page_content)
+            st.write(self.store.similarity_search_with_score(prompt)[0][0].page_content)
+
+
+if __name__ == "__main__":
+    App()
