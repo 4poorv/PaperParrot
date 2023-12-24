@@ -1,0 +1,8 @@
+UPDATE THIS CODE TO create separate module which handles PDF files uploaded by upload button
+this class will have a instance which has properties all related to PDF file, its path, its object "uploaded_file"       uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+other properties related to this file, and its agent as well set to none initially
+agent = PDFlangchainAgent(self.llm).get_vectorstore_agent(uploaded_file_path)
+
+App class will maintain list of PDFHandler class, for each PDF the instance of PDFhandler will be created
+
+
