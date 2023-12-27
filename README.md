@@ -1,2 +1,2 @@
-# AnnualReportAnalyst
-A POC for analyzing Stock's annual report PDF using LLM
+# PaperParrot
+Streamlit app showcasing LangChain's capabilities in PDF processing with LLMs
